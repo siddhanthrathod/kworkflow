@@ -63,7 +63,7 @@ function check_dependencies()
   while IFS='' read -r package; do
     installed=$($command "$package" &> /dev/null)
     [[ $? -ne 0 ]] && package_list="$package $package_list"
-  done < "$DOCUMENTATION/dependencies/$distro.dependencies"
+  done < "${DOCUMENTATION}/dependencies/$distro.dependencies"
   cmd="$pfix $package_list"
 
   if [[ -n "$package_list" ]]; then
@@ -84,7 +84,7 @@ function check_dependencies()
   while IFS='' read -r package; do
     python3 -c "import pkg_resources; pkg_resources.require('$package')" &> /dev/null
     [[ "$?" != 0 ]] && pip_package_list="\"$package\" $pip_package_list"
-  done < "$DOCUMENTATION/dependencies/pip.dependencies"
+  done < "${DOCUMENTATION}/dependencies/pip.dependencies"
 
   if [[ -n "$pip_package_list" ]]; then
     if [[ "$FORCE" == 0 ]]; then
@@ -93,8 +93,12 @@ function check_dependencies()
       fi
     fi
 
-    # Install pip packages
-    cmd="pip install $pip_package_list"
+    # Install pip packages l
+    if [[ "$distro" =~ 'gentoo' ]]; then
+      cmd="pip install --target=${HOME}/.local/bin $pip_package_list"
+    else
+      cmd="pip install $pip_package_list"
+    fi
     eval "$cmd"
   fi
 }
