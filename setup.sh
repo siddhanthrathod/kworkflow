@@ -47,33 +47,24 @@ function check_dependencies()
   local pip_package_list=''
   local cmd=''
   local distro
-
+  debian=("apt list --installed | cut -d '/' -f1" "apt install -y")
+  arch=("pacman -Ql " "pacman -S")
+  gentoo=("qlist -I " "emerge")
+  fedora=("rpm -q " "dnf install -y")
+  declare -A distro_commands=(['arch']=arch ['gentoo']=gentoo ['fedora']=fedora ['debian']=debian)
+  declare -n c
   distro=$(detect_distro '/')
 
-  if [[ "$distro" =~ 'arch' ]]; then
-    while IFS='' read -r package; do
-      installed=$(pacman -Ql "$package" &> /dev/null)
-      [[ "$?" != 0 ]] && package_list="$package $package_list"
-    done < "$DOCUMENTATION/dependencies/arch.dependencies"
-    cmd="pacman -S $package_list"
-  elif [[ "$distro" =~ 'debian' ]]; then
-    while IFS='' read -r package; do
-      installed=$(dpkg-query -W --showformat='${Status}\n' "$package" 2> /dev/null | grep -c 'ok installed')
-      [[ "$installed" -eq 0 ]] && package_list="$package $package_list"
-    done < "$DOCUMENTATION/dependencies/debian.dependencies"
-    cmd="apt install -y $package_list"
-  elif [[ "$distro" =~ 'fedora' ]]; then
-    while IFS='' read -r package; do
-      installed=$(rpm -q "$package" &> /dev/null)
-      [[ "$?" -ne 0 ]] && package_list="$package $package_list"
-    done < "$DOCUMENTATION/dependencies/fedora.dependencies"
-    cmd="dnf install -y $package_list"
-  else
-    warning 'Unfortunately, we do not have official support for your distro (yet)'
-    warning 'Please, try to find the following packages:'
-    warning "$(cat "$DOCUMENTATION/dependencies/arch.dependencies")"
-    return 0
-  fi
+  for c in ${distro_commands[$distro]}; do
+    pfix=${c[1]}
+    command=${c[0]}
+  done
+
+  while IFS='' read -r package; do
+    installed=$($command "$package" &> /dev/null)
+    [[ $? -ne 0 ]] && package_list="$package $package_list"
+  done < "$DOCUMENTATION/dependencies/$distro.dependencies"
+  cmd="$pfix $package_list"
 
   if [[ -n "$package_list" ]]; then
     if [[ "$FORCE" == 0 ]]; then
